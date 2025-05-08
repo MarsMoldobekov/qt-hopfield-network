@@ -12,7 +12,7 @@ std::vector<NeuronNet::State> ImageProcessor::loadImage(const std::string &path)
 
 std::vector<NeuronNet::State> ImageProcessor::preprocessImage(const cv::Mat &image) {
     cv::Mat resized;
-    cv::resize(image, resized, cv::Size(500, 500));
+    cv::resize(image, resized, cv::Size(100, 100));
 
     cv::Mat blurred;
     cv::GaussianBlur(resized, blurred, cv::Size(3, 3), 0);
@@ -22,7 +22,7 @@ std::vector<NeuronNet::State> ImageProcessor::preprocessImage(const cv::Mat &ima
 
     binary = binary.reshape(1, 1);
     std::vector<NeuronNet::State> states;
-    states.reserve(500*500);
+    states.reserve(100*100);
 
     for (int i = 0; i < binary.cols; ++i) {
         states.push_back(binary.at<uchar>(0, i) < 128 ? NeuronNet::State::Upper : NeuronNet::State::Lower);

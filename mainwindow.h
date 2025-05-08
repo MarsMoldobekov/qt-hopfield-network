@@ -5,10 +5,12 @@
 #include <QPushButton>
 #include <QLineEdit>
 #include <QLabel>
+#include <QThread>
+
 #include <vector>
 #include <list>
 
-#include "neural_network.h"
+#include "neural_worker.h"
 #include "image_processor.h"
 
 QT_BEGIN_NAMESPACE
@@ -38,13 +40,14 @@ private:
     QLineEdit *lineEdit;
     QLabel *resultLabel;
 
-    std::unique_ptr<NeuronNet> network;
+    QThread workerThread;
+    NeuralWorker *worker;
     std::vector<NeuronNet::Pattern> trainingPattern;
 
     int imageWidth = 0;
     int imageHeight = 0;
 
-    void updateUI();
+    void updateUI(bool isTrained);
     void showImage(const std::vector<NeuronNet::State> &pattern, int width, int height);
 };
 #endif // MAINWINDOW_H

@@ -12,7 +12,10 @@ public:
     enum class State : std::int8_t { Lower = -1, Upper = 1 };
     using Pattern = std::vector<State>;
 
-    explicit NeuronNet(const std::list<Pattern> &patterns);
+    explicit NeuronNet(std::size_t neuron_count);
+    ~NeuronNet() = default;
+
+    void learn(const std::list<Pattern> &patterns);
     std::size_t recognize(Pattern &pattern) const;
 
     static State read(std::uint8_t value) noexcept;
@@ -20,10 +23,9 @@ public:
 
 private:
     static constexpr int MAX_STEP = 1000;
-    const std::size_t neuron_count_;
+    std::size_t neuron_count_;
     std::vector<std::vector<double>> synapses_;
 
-    void learn(const std::list<Pattern> &patterns);
     bool update(Pattern &pattern) const;
     static double multiply(State a, State b) noexcept;
 };

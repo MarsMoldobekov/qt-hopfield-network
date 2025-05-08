@@ -24,6 +24,7 @@ set(PROJECT_SOURCES
         mainwindow.ui
         neural_network.cpp
         image_processor.cpp
+        neural_worker.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -32,6 +33,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${PROJECT_SOURCES}
         neural_network.h
         image_processor.h
+        neural_worker.h
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET HopfieldNet APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

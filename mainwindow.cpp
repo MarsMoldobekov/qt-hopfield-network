@@ -13,7 +13,6 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , network(nullptr)
 {
     ui->setupUi(this);
 
@@ -23,47 +22,61 @@ MainWindow::MainWindow(QWidget *parent)
     lineEdit = ui->lineEdit;
     resultLabel = ui->label;
 
-    updateUI();
+    updateUI(false);
+
+    worker = new NeuralWorker;
+    worker->moveToThread(&workerThread);
+
+    connect(worker, &NeuralWorker::trainingCompleted, this, [this]() -> void {
+        QMessageBox::information(this, "success", "Training completed!");
+        updateUI(true);
+    });
+
+    connect(worker, &NeuralWorker::recognitionCompleted, this, [this](NeuronNet::Pattern pattern, int steps) -> void {
+        showImage(pattern, imageWidth, imageHeight);
+        //resultLabel->setText(QString("Recognition completed in %1 steps").arg(steps));
+    });
+
+    connect(worker, &NeuralWorker::errorOccured, this, [this](QString msg) -> void {
+        QMessageBox::critical(this, "Error", msg);
+    });
+
+    workerThread.start();
 }
 
 MainWindow::~MainWindow()
 {
+    workerThread.quit();
+    workerThread.wait();
     delete ui;
 }
 
 void MainWindow::on_trainButton_clicked()
 {
-    try {
-        trainingPattern.clear();
+    trainingPattern.clear();
 
-        QDir resourceDir("./resources");
-        QStringList imageFiles = resourceDir.entryList({"*.png", "*.jpg"}, QDir::Files);
+    QDir resourceDir("./resources");
+    QStringList imageFiles = resourceDir.entryList({"*.png", "*.jpg"}, QDir::Files);
 
-        if (imageFiles.empty()) {
-            QMessageBox::warning(this, "Warning", "No training images found in resource directory");
-            return;
-        }
-
-        for (const QString &file : imageFiles) {
-            QString path = resourceDir.absoluteFilePath(file);
-            std::vector<NeuronNet::State> pattern = ImageProcessor::loadImage(path.toStdString());
-
-            if (imageWidth == 0) {
-                QImage img(path);
-                imageWidth = img.width();
-                imageHeight = img.height();
-            }
-
-            trainingPattern.push_back(pattern);
-        }
-
-        network = std::make_unique<NeuronNet>(std::list<NeuronNet::Pattern>(trainingPattern.begin(), trainingPattern.end()));
-        QMessageBox::information(this, "Success", QString("Network trained with %1 patterns").arg(trainingPattern.size()));
-    } catch (const std::exception &e) {
-        QMessageBox::critical(this, "Error", QString("Training failed: ") + e.what());
+    if (imageFiles.empty()) {
+        QMessageBox::warning(this, "Warning", "No training images found in resource directory");
+        return;
     }
 
-    updateUI();
+    for (const QString &file : imageFiles) {
+        QString path = resourceDir.absoluteFilePath(file);
+        std::vector<NeuronNet::State> pattern = ImageProcessor::loadImage(path.toStdString());
+
+        if (imageWidth == 0) {
+            QImage img(path);
+            imageWidth = img.width();
+            imageHeight = img.height();
+        }
+
+        trainingPattern.push_back(pattern);
+    }
+
+    Q_EMIT worker->trainNetwork(std::list<NeuronNet::Pattern>(trainingPattern.begin(), trainingPattern.end()));
 }
 
 void MainWindow::on_browseButton_clicked()
@@ -82,13 +95,9 @@ void MainWindow::on_browseButton_clicked()
         }
     }
 }
+
 void MainWindow::on_testButton_clicked()
 {
-    if (!network) {
-        QMessageBox::warning(this, "Warning", "Please train the network first");
-        return;
-    }
-
     QString imagePath = lineEdit->text();
 
     if (imagePath.isEmpty()) {
@@ -96,17 +105,8 @@ void MainWindow::on_testButton_clicked()
         return;
     }
 
-    try {
-        auto pattern = ImageProcessor::loadImage(imagePath.toStdString());
-        std::size_t steps = network->recognize(pattern);
-        QFileInfo fileInfo(imagePath);
-        QString resultPath = fileInfo.path() + "/recognized_" + fileInfo.fileName();
-        ImageProcessor::saveImage(pattern, resultPath.toStdString(), imageWidth, imageHeight);
-        showImage(pattern, imageWidth, imageHeight);
-        resultLabel->setText(QString("Recognition completed in %1 steps. Result saved to %2").arg(steps).arg(resultPath));
-    } catch (const std::exception &e) {
-        QMessageBox::critical(this, "Error", QString("Recognition failed: ") + e.what());
-    }
+    auto pattern = ImageProcessor::loadImage(imagePath.toStdString());
+    Q_EMIT worker->recognizePattern(pattern);
 }
 
 void MainWindow::showImage(const std::vector<NeuronNet::State> &pattern, int width, int height) {
@@ -123,8 +123,7 @@ void MainWindow::showImage(const std::vector<NeuronNet::State> &pattern, int wid
     resultLabel->setPixmap(pixmap.scaled(resultLabel->size(), Qt::KeepAspectRatio));
 }
 
-void MainWindow::updateUI() {
-    bool isTrained = (network != nullptr);
+void MainWindow::updateUI(bool isTrained) {
     testButton->setEnabled(isTrained);
     resultLabel->setText(QString(isTrained ? "Network is ready for testing" : "Please train the network first"));
 }

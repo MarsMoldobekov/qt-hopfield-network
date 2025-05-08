@@ -5,8 +5,12 @@
 
 #include "neural_network.h"
 
-NeuronNet::NeuronNet(const std::list<Pattern> &patterns) :
-    neuron_count_(patterns.empty() ? 0 : patterns.front().size()) {
+NeuronNet::NeuronNet(std::size_t neuron_count) : neuron_count_(neuron_count) {
+
+}
+
+void NeuronNet::learn(const std::list<Pattern> &patterns) {
+    neuron_count_ = patterns.empty() ? 0 : patterns.front().size();
 
     if (neuron_count_ == 0) {
         throw std::invalid_argument("Pattern list cannot be empty");
@@ -18,10 +22,6 @@ NeuronNet::NeuronNet(const std::list<Pattern> &patterns) :
         }
     }
 
-    learn(patterns);
-}
-
-void NeuronNet::learn(const std::list<Pattern> &patterns) {
     synapses_.resize(neuron_count_, std::vector<double>(neuron_count_, 0.0));
     const double normalization = 1.0 / neuron_count_;
     for (std::size_t i = 0; i < neuron_count_; ++i) {
